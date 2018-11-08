@@ -173,11 +173,11 @@ int tc_iot_hal_tls_connect(tc_iot_network_t* network, const char* host,
     }
     network->net_context.is_connected = 1;
 
-    ret = mbedtls_net_set_block(&(tls_data->ssl_fd));
-    if (ret != 0) {
-        TC_IOT_LOG_ERROR("net_set_block returned %d", ret);
-        return TC_IOT_TLS_NET_SET_BLOCK_FAILED;
-    }
+//    ret = mbedtls_net_set_block(&(tls_data->ssl_fd));
+//    if (ret != 0) {
+//        TC_IOT_LOG_ERROR("net_set_block returned %d", ret);
+//        return TC_IOT_TLS_NET_SET_BLOCK_FAILED;
+//    }
     TC_IOT_LOG_TRACE("mbed tls connect ok");
 
     TC_IOT_LOG_TRACE("mbedtls_ssl_config_defaults configing...");
