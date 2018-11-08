@@ -389,7 +389,7 @@ int tc_iot_server_init(tc_iot_shadow_client* p_shadow_client, tc_iot_shadow_conf
     TC_IOT_LOG_INFO("construct mqtt shadow client success.");
     TC_IOT_LOG_INFO("yield waiting for server push.");
     /* 执行 yield 收取影子服务端前序指令消息，清理历史状态。 */
-    tc_iot_shadow_yield(p_shadow_client, 200);
+    tc_iot_shadow_yield(p_shadow_client, 1000);
     TC_IOT_LOG_INFO("yield waiting for server finished.");
 
     /* 通过get操作主动获取服务端影子设备状态，以便设备端同步更新至最新状态*/

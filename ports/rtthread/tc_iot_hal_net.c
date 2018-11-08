@@ -18,136 +18,230 @@ extern "C" {
 #include "tc_iot_inc.h"
 
 
-int tc_iot_hal_net_read(tc_iot_network_t* n, unsigned char* buffer,
-                        int len, int timeout_ms) {
-
-  	int recvLen = 0;
-	int rc = 0;
+int tc_iot_hal_net_read(tc_iot_network_t* network, unsigned char* buffer, int len, int timeout_ms) 
+{
+	int ret, err_code = 0;
+	uint32_t len_recv = 0;
+	time_int_type t_left;
+	fd_set sets;
+	struct timeval timeout;
 	tc_iot_timer timer;
 
-    struct timeval timeout;
-    fd_set fdset;
 
-    IF_NULL_RETURN(n, TC_IOT_NULL_POINTER);
-    TC_IOT_LOG_TRACE("before read, len=%d, timeout_ms=%d", len, timeout_ms);
+	IF_NULL_RETURN(network, TC_IOT_NULL_POINTER);
+    TC_IOT_LOG_TRACE("tc_iot_hal_net_read entry, len=%d timeout=%dms", len, timeout_ms);	
+    tc_iot_hal_timer_countdown_ms(&timer, timeout_ms);
+
+	do{
+		
+		FD_ZERO(&sets);
+		FD_SET(network->net_context.fd, &sets);
+		t_left = tc_iot_hal_timer_left_ms(&timer);
+		timeout.tv_sec = t_left / 1000;
+		timeout.tv_usec = (t_left % 1000) * 1000;
+		ret = select(network->net_context.fd + 1, &sets, NULL, NULL, &timeout);
+		if (ret > 0) 
+		{
+			ret = recv(network->net_context.fd, buffer + len_recv, len - len_recv, 0);
+			if (ret > 0) 
+			{
+				len_recv += ret;
+			} 
+			else if (0 == ret) 
+			{
+				TC_IOT_LOG_ERROR("tc_iot_hal_net_read connection is closed");
+				err_code = TC_IOT_NET_READ_ERROR;
+				break;
+			} 
+			else 
+			{
+				if (EINTR == errno) 
+				{
+					TC_IOT_LOG_TRACE("tc_iot_hal_net_read EINTR is caught");
+					continue;
+				}
+				TC_IOT_LOG_ERROR("tc_iot_hal_net_read recv fail");
+				err_code = TC_IOT_NET_READ_ERROR;
+				break;
+			}
+		}
+		else if (0 == ret) 
+		{
+			TC_IOT_LOG_WARN("tc_iot_hal_net_read nothing read");
+			err_code = TC_IOT_NET_NOTHING_READ;
+            break;
+        }				
+		else 
+		{
+			TC_IOT_LOG_ERROR("tc_iot_hal_net_read select fail");
+			err_code = TC_IOT_NET_READ_ERROR;
+			break;
+		}
+	} while ((len_recv < len) && (!tc_iot_hal_timer_is_expired(&timer)));
+
+
+	return (0 != len_recv) ? len_recv : err_code;
+}
+
+
+int tc_iot_hal_net_write(tc_iot_network_t* network, const unsigned char* buffer, int len, int timeout_ms) 
+
+{
+	int ret;
+	uint32_t len_sent = 0;
+	time_int_type t_left;
+	struct timeval timeout;
+	tc_iot_timer timer;
+	fd_set sets;
+
+
+	IF_NULL_RETURN(network, TC_IOT_NULL_POINTER);
+    TC_IOT_LOG_TRACE("tc_iot_hal_net_write entry, len=%d timeout=%dms", len, timeout_ms);
 	
     tc_iot_hal_timer_countdown_ms(&timer, timeout_ms);
-	do {
-			rc = recv(n->net_context.fd, buffer + recvLen, len - recvLen, MSG_DONTWAIT);
-			if(rc < 0) 
+
+	do {	
+			FD_ZERO(&sets);
+			FD_SET(network->net_context.fd, &sets);
+
+			t_left = tc_iot_hal_timer_left_ms(&timer);
+			timeout.tv_sec = t_left / 1000;
+			timeout.tv_usec = (t_left % 1000) * 1000;
+
+			ret = select(network->net_context.fd + 1, NULL, &sets, NULL, &timeout);
+			if (ret > 0) 
 			{
-				TC_IOT_LOG_TRACE("read failed: recvLen=%d, rc=%d", recvLen, rc);
-				recvLen = rc;
-				break;			  		
+				if (0 == FD_ISSET(network->net_context.fd, &sets)) 
+				{
+					TC_IOT_LOG_TRACE("tc_iot_hal_net_write fd no set");
+					/* If timeout in next loop, it will not sent any data */
+					ret = 0;
+					continue;
+				}
+			} 
+			else if (0 == ret) 
+			{
+				TC_IOT_LOG_TRACE("tc_iot_hal_net_write select timeout fd=%d", (int)network->net_context.fd);
+				break;
+			} 
+			else 
+			{
+				if (EINTR == errno) 
+				{
+					TC_IOT_LOG_TRACE("tc_iot_hal_net_write EINTR is caught");
+					continue;
+				}
+
+				TC_IOT_LOG_ERROR("tc_iot_hal_net_write select fail");
+				break;
 			}
-			else
-			{
-				recvLen += rc;
-			    TC_IOT_LOG_TRACE("read success: recvLen=%d, rc=%d", recvLen, rc);
-
-				FD_ZERO(&fdset);
-				FD_SET(n->net_context.fd, &fdset);
-
-			    timeout.tv_sec = 2;
-			    timeout.tv_usec = timeout_ms * 0;
-				select(n->net_context.fd + 1, &fdset, NULL, NULL, &timeout);
-			}          
-	} while (recvLen < len && (!tc_iot_hal_timer_is_expired(&timer)));
 	
-    if (recvLen == 0) {
-        return TC_IOT_NET_NOTHING_READ;
-    }
-//	else if (recvLen != len) {
-//        return TC_IOT_NET_READ_TIMEOUT;
-//    }
-    TC_IOT_LOG_TRACE("recv result: recvLen=%d", recvLen);
-    return recvLen;
+
+			if (ret > 0) 
+			{
+				ret = send(network->net_context.fd, buffer + len_sent, len - len_sent, 0);
+				if (ret > 0) 
+				{
+					len_sent += ret;
+				} 
+				else if (0 == ret) 
+				{
+					TC_IOT_LOG_TRACE("tc_iot_hal_net_write no data send");
+				} 
+				else 
+				{
+					if (EINTR == errno) 
+					{
+						TC_IOT_LOG_TRACE("tc_iot_hal_net_write EINTR is caught");
+						continue;
+					}
+
+					TC_IOT_LOG_ERROR("tc_iot_hal_net_write send fail");
+					len_sent = TC_IOT_SEND_PACK_FAILED;
+					break;
+				}
+			}
+	} while ((len_sent < len)  && (!tc_iot_hal_timer_is_expired(&timer)));
+
+	return len_sent;
 }
 
-int tc_iot_hal_net_write(tc_iot_network_t* n, const unsigned char* buffer,
-                         int len, int timeout_ms) {
-    int sentLen = 0;
-    int rc = 0;
-  	tc_iot_timer timer;
-	struct timeval timeout;
-    fd_set fdset;
+int tc_iot_hal_net_connect(tc_iot_network_t* n, char* host, uint16_t port) 
+{
+    struct addrinfo hints;
+    struct addrinfo *addrInfoList = NULL;
+    struct addrinfo *cur = NULL;
+    int rc = -1;
+    char buff[6];
 
-    FD_ZERO(&fdset);
-    FD_SET(n->net_context.fd, &fdset);
+  
 
-	timeout.tv_sec = 2;
-    timeout.tv_usec = 0;
-
-	 setsockopt(n->net_context.fd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(struct timeval));
-	 rc = send(n->net_context.fd, buffer, len, 0);
-	 if (rc == len)
-	 {
-		sentLen = rc;
-	 }
-	 else
-	 {
-		 sentLen = -1;
-	 }
-
-    TC_IOT_LOG_TRACE("sent result: sentLen=%d", sentLen);
-    return sentLen;
-}
-
-int tc_iot_hal_net_connect(tc_iot_network_t* n, const char* host,
-                           uint16_t port) {
-    struct sockaddr_in sAddr;
-    int retVal = -1;
-    struct hostent *ipAddress;
-
+    TC_IOT_LOG_TRACE("tc_iot_hal_net_connect entry");
+	memset(&hints, 0, sizeof(hints));
     if (host) {
-        n->net_context.host = (char *)host;
+        n->net_context.host = host;
     }
 
     if (port) {
         n->net_context.port = port;
     }
 
-	TC_IOT_LOG_TRACE("tc_iot_hal_net_connect entry");
+    hints.ai_family = AF_INET; /* only IPv4 */
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
 
-    if ((ipAddress = gethostbyname(n->net_context.host)) == 0)
-    {
-        TC_IOT_LOG_ERROR("getaddrinfo failed for host:%s", n->net_context.host);
-        retVal = TC_IOT_NET_UNKNOWN_HOST;
-        goto exit;
-    }
+	memset(buff, 0, sizeof(buff));
+    sprintf(buff, "%u", n->net_context.port);
 
-    sAddr.sin_family = AF_INET;
-    //sAddr.sin_family = AF_AT;
-    sAddr.sin_addr.s_addr = ((struct in_addr*)(ipAddress->h_addr))->s_addr;
-    sAddr.sin_port = htons(n->net_context.port);
+	TC_IOT_LOG_TRACE("host:(%s) port:(%s)", n->net_context.host, buff);
 
-	TC_IOT_LOG_TRACE("ip[0x%08X],port[%d] [%d]",(u32_t)sAddr.sin_addr.s_addr, (u16_t)sAddr.sin_port, n->net_context.port);
-
-    if ((n->net_context.fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        retVal = TC_IOT_NET_SOCKET_FAILED;
-        TC_IOT_LOG_ERROR("create socket failed for host:%s", n->net_context.host);
-        goto exit;
-    }
-
-    if ((retVal = connect(n->net_context.fd, (struct sockaddr*)&sAddr, sizeof(sAddr))) < 0)
-    {
-        retVal = TC_IOT_NET_CONNECT_FAILED;
-        TC_IOT_LOG_ERROR("connect failed for host:%s", n->net_context.host);
-        closesocket(n->net_context.fd);
-		n->net_context.fd = -1;
-        goto exit;
-    }
-	else
+    if ((rc = getaddrinfo(n->net_context.host, buff, &hints, &addrInfoList)) != 0) 
 	{
-		TC_IOT_LOG_TRACE("tc_iot_hal_net_connect success");
-	}
+        TC_IOT_LOG_ERROR("getaddrinfo failed for host:%s", n->net_context.host);
+		rc = TC_IOT_NET_UNKNOWN_HOST;
+        goto exit;
+    }
 
-    n->net_context.is_connected = 1;
+    for (cur = addrInfoList; cur != NULL; cur = cur->ai_next) 
+	{
+        if (cur->ai_family != AF_INET) 
+		{
+            TC_IOT_LOG_ERROR("socket type error");
+            rc = 0;
+            continue;
+        }
 
+        n->net_context.fd = socket(cur->ai_family, cur->ai_socktype, cur->ai_protocol);
+        if (n->net_context.fd < 0) 
+		{
+            TC_IOT_LOG_ERROR("create socket failed for host:%s", n->net_context.host);
+            rc = TC_IOT_NET_SOCKET_FAILED;
+            continue;
+        }
+
+        if (connect(n->net_context.fd, cur->ai_addr, cur->ai_addrlen) == 0) 
+		{
+            rc = TC_IOT_SUCCESS;
+            break;
+        }
+
+        close(n->net_context.fd);
+        TC_IOT_LOG_ERROR("connect failed for host:%s", n->net_context.host);
+		rc = TC_IOT_NET_CONNECT_FAILED;
+       
+    }
+
+    if (TC_IOT_SUCCESS == rc) 
+    {
+        TC_IOT_LOG_TRACE("connect host(%s) success, fd=%d", host, n->net_context.fd);
+    }
+    freeaddrinfo(addrInfoList);
+	
 exit:
-    return retVal;
+
+    return rc;
 }
+
 
 int tc_iot_hal_net_is_connected(tc_iot_network_t* network) {
     return network->net_context.is_connected;

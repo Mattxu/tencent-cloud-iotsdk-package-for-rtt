@@ -3,7 +3,7 @@
 #include "tc_iot_export.h"
 #include <rtthread.h>
 
-
+#define MQTT_YEILD_TIME					1000
 #define MQTT_SHADOW_THREAD_STACK_SIZE 	10240
 
 void parse_command(tc_iot_mqtt_client_config * config, int argc, char ** argv) ;
@@ -120,7 +120,7 @@ void mqtt_shadow_thread(void) {
     }
 
     while (!stop) {
-        tc_iot_server_loop(tc_iot_get_shadow_client(), 100);
+        tc_iot_server_loop(tc_iot_get_shadow_client(), MQTT_YEILD_TIME);
 		do_sim_data_change();
     }
 

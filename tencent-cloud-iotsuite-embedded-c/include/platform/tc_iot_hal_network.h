@@ -134,7 +134,7 @@ int tc_iot_hal_net_init(tc_iot_network_t* network,
  *	失败返回 TC_IOT_FAILURE(-90) 或者其他具体原因(负数)
  * @see tc_iot_sys_code_e
  */
-int tc_iot_hal_net_connect(tc_iot_network_t* network, const char* host,
+int tc_iot_hal_net_connect(tc_iot_network_t* network, char* host,
                            uint16_t port);
 
 /**

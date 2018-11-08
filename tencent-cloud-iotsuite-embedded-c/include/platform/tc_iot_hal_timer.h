@@ -47,6 +47,6 @@ void tc_iot_hal_timer_countdown_second(tc_iot_timer* p_timer, unsigned int delay
  *
  * @return 当前剩余毫秒数，小于或等于0时，表示定时器已经超时
  */
-int tc_iot_hal_timer_left_ms(tc_iot_timer* p_timer);
+time_int_type tc_iot_hal_timer_left_ms(tc_iot_timer* p_timer);
 
 #endif /* end of include guard */

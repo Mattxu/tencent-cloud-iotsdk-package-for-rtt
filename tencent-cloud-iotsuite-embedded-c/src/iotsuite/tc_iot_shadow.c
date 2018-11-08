@@ -77,7 +77,7 @@ int tc_iot_shadow_construct(tc_iot_shadow_client *c,
         return rc;
     }
 
-    rc = tc_iot_mqtt_client_subscribe(p_mqtt_client, p_cfg->sub_topic, TC_IOT_QOS1,
+    rc = tc_iot_mqtt_client_subscribe(p_mqtt_client, p_cfg->sub_topic, TC_IOT_QOS0,
                                           _tc_iot_shadow_on_message_received, c);
     if (TC_IOT_SUCCESS == rc) {
         TC_IOT_LOG_TRACE("subscribing to %s success.", p_cfg->sub_topic);
@@ -835,7 +835,7 @@ int tc_iot_shadow_check_and_report(tc_iot_shadow_client *c, char * buffer, int b
     memset(&pubmsg, 0, sizeof(pubmsg));
     pubmsg.payload = buffer;
     pubmsg.payloadlen = strlen(pubmsg.payload);
-    pubmsg.qos = TC_IOT_QOS1;
+    pubmsg.qos = TC_IOT_QOS0;
     pubmsg.retained = 0;
     pubmsg.dup = 0;
     TC_IOT_LOG_TRACE("requesting with: %s", (char *)pubmsg.payload);

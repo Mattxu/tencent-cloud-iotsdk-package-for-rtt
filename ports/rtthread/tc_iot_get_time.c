@@ -205,17 +205,20 @@ static uint32_t _get_timestamp_from_ntp(char *host)
         goto do_exit;
     }
 
+
     ret = udp_network.do_write(&udp_network, write_buf, write_len, 0);
     if (ret < 0) {
         TC_IOT_LOG_ERROR("udp write error!");
         goto do_exit;
     }
 
-	ret = udp_network.do_read(&udp_network, read_buf, sizeof(read_buf), 3000);
+
+	ret = udp_network.do_read(&udp_network, read_buf, sizeof(read_buf), 10000);
     if (ret < 0) {
         TC_IOT_LOG_ERROR("udp read error!");
         goto do_exit;
     }
+
     parse_timeval(read_buf, &tv);
 	TC_IOT_LOG_TRACE("Second[%d]", tv.tv_sec);
 

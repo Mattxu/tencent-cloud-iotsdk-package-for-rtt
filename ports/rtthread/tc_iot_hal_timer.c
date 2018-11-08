@@ -51,9 +51,9 @@ void tc_iot_hal_timer_countdown_second(tc_iot_timer* timer,
     tc_iot_hal_timer_countdown_ms(timer, timeout*1000);
 }
 
-int tc_iot_hal_timer_left_ms(tc_iot_timer* timer) {
+time_int_type tc_iot_hal_timer_left_ms(tc_iot_timer* timer) {
     
-    return (int)(timer->ts - tc_iot_hal_get_ms()); 
+    return (time_int_type)(timer->ts - tc_iot_hal_get_ms()); 
 }
 
 
