@@ -11,7 +11,7 @@
  *
  * @return 指针指向分配到的内存空间，返回空指针则表示未分配到内存
  */
- void *tc_iot_hal_malloc(size_t size);
+ void *tc_iot_hal_malloc(uint32_t size);
 
 
 /**
