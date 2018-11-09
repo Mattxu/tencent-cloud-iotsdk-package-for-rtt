@@ -17,6 +17,16 @@ typedef enum _tc_iot_network_protocol {
 typedef struct tc_iot_network_t tc_iot_network_t;
 
 #if defined(ENABLE_TLS) || defined(ENABLE_DTLS)
+#include "entropy.h"
+#include "ctr_drbg.h"
+#include "ssl.h"
+#include "x509_crt.h"
+#include "pk.h"
+#include "net_sockets.h"
+#include "timing.h"
+#include "ssl_cookie.h"
+
+
 /**
  * @brief TLS 相关配置信息
  */

@@ -94,18 +94,16 @@ src += Glob('tencent-cloud-iotsuite-embedded-c/external/jsmn/*.c')
 CPPPATH += [cwd + '/tencent-cloud-iotsuite-embedded-c/external/jsmn']	
 
 
-#tencent-cloud-iotsuite-embedded-c/src/platform/rtthread
+# ports/rtthread
 src += Glob('ports/rtthread/*.c')
-SrcRemove(src, 'ports/rtthread/tc_iot_hal_tls.c')
 
+#TLS used  ports/ssl
+if GetDepend(['PKG_USING_TENCENT_IOTKIT_MQTT_TLS']):
+	src += Glob('ports/ssl/tc_iot_hal_tls.c')
 
-#TLS used
-#if GetDepend(['PKG_USING_TENCENT_IOTKIT_MQTT_TLS']):
-#	src += Glob('ports/rtthread/tc_iot_hal_tls.c')
-
-#DTLS used
-#if GetDepend(['PKG_USING_TENCENT_IOTKIT_COAP_DTLS']):
-#	src += Glob('ports/rtthread/tc_iot_hal_tls.c')
+#DTLS used ports/ssl
+if GetDepend(['PKG_USING_TENCENT_IOTKIT_COAP_DTLS']):
+	src += Glob('ports/ssl/tc_iot_hal_dtls.c')
   
 
 #CPPDEFINES += ['ENABLE_TC_IOT_LOG_TRACE', 'ENABLE_TC_IOT_LOG_DEBUG', 'ENABLE_TC_IOT_LOG_INFO', 'ENABLE_TC_IOT_LOG_WARN', 'ENABLE_TC_IOT_LOG_ERROR', 'ENABLE_TC_IOT_LOG_FATAL']
